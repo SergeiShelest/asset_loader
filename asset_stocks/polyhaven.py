@@ -3,7 +3,8 @@ import requests
 
 import bpy
 
-from ..utils import temp, download, import_blend
+from ..utils import temp, import_blend
+from ..download_manager import File, QueueFiles
 from ..stock import IStock, AssetNotFound, AssetAccessDenied, AssetHttpError, AssetDownloadError
 from ..fake_asset import FakeAsset
 
@@ -32,10 +33,8 @@ class PolyHaven(IStock):
         blend_url = req_data["url"]
         blend_path = os.path.join(self.TEMP_PATH, "{0}.blend".format(id_name))
 
-        try:
-            download.download_file(blend_url, blend_path)
-        except Exception:
-            raise AssetDownloadError
+        files = QueueFiles(id_name)
+        files.add_file(File(title="Blend", url=blend_url, path=blend_path))
 
         textures = req_data["include"].items()
 
@@ -45,10 +44,9 @@ class PolyHaven(IStock):
 
             os.makedirs(os.path.split(texture_path)[0], mode=0o775, exist_ok=True)
 
-            try:
-                download.download_file(texture_url, texture_path)
-            except Exception:
-                raise AssetDownloadError
+            files.add_file(File(title="Texture", url=texture_url, path=texture_path))
+
+        self.dm.download(files)
 
         try:
             import_blend.append_material(blend_path, id_name)
@@ -77,7 +75,9 @@ class PolyHaven(IStock):
             asset_image_preview = "https://cdn.polyhaven.com/asset_img/thumbs/{0}.png?height=256".format(id_name)
             asset_image_path = os.path.join(self.TEMP_PATH, "prw_{0}.png".format(id_name))
 
-            download.download_file(asset_image_preview, asset_image_path)
+            files = QueueFiles("Preview")
+            files.add_file(File(title=id_name, url=asset_image_preview, path=asset_image_path))
+            self.dm.download(files)
 
             tags = material_data["tags"]
             categories = material_data["categories"]

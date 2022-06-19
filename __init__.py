@@ -1,7 +1,12 @@
 import threading
 
 import bpy
+from bpy.app import handlers
+from bpy.types import PropertyGroup, Scene
+from bpy.props import CollectionProperty, PointerProperty
+from bpy.utils import register_class, unregister_class
 
+from .download_manager_ui import AL_DownloadGroup, AL_Download, AL_PT_DownloadManager
 from .generate_library import GenerateLibrary
 from .asset_stocks import stocks
 from .fake_asset import LoadStatusEnum
@@ -20,6 +25,13 @@ bl_info = {
 }
 
 
+class AL_Data(PropertyGroup):
+    downloadGroups: CollectionProperty(
+        type=AL_DownloadGroup,
+        name='downloads',
+    )
+
+
 def load_fake_asset(material):
     id_name = material["fake_asset_data"]["id_name"]
     id_stock = material["fake_asset_data"]["id_stock"]
@@ -35,10 +47,10 @@ def load_fake_asset(material):
     bpy.data.materials.remove(material)
 
 
-@bpy.app.handlers.persistent
-def find_fake_asset(_):
-    if "asset_loader" in bpy.context.scene.keys():
-        if bpy.context.scene["asset_loader"]["asset_library"]:
+@handlers.persistent
+def find_fake_asset(scene):
+    if "asset_loader" in scene.keys():
+        if scene["asset_loader"]["asset_library"]:
             return
 
     materials = bpy.data.materials
@@ -56,10 +68,24 @@ def find_fake_asset(_):
                 return
 
 
+classes = [
+    AL_Download,
+    AL_DownloadGroup,
+    AL_Data,
+    AL_PT_DownloadManager,
+    GenerateLibrary
+]
+
+
 def register():
-    bpy.utils.register_class(GenerateLibrary)
-    bpy.app.handlers.depsgraph_update_pre.append(find_fake_asset)
+    for cl in classes:
+        register_class(cl)
+
+    handlers.depsgraph_update_pre.append(find_fake_asset)
+
+    Scene.asset_loader_data = PointerProperty(type=AL_Data)
 
 
 def unregister():
-    bpy.utils.unregister_class(GenerateLibrary)
+    for cl in classes.reverse():
+        unregister_class(cl)

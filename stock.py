@@ -1,6 +1,7 @@
 from abc import ABCMeta, abstractmethod
 
 from .fake_asset import FakeAsset
+from .download_manager import DownloadManager
 
 
 class AssetNotFound(Exception):
@@ -24,6 +25,8 @@ class IStock:
 
     name: str
     title: str
+
+    dm: DownloadManager
 
     @abstractmethod
     def download_asset(self, id_name):
